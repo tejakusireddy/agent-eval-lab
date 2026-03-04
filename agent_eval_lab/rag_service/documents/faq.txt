@@ -1,0 +1,26 @@
+Frequently Asked Questions
+
+Q: What is SecureCloud Pro?
+A: SecureCloud Pro is our enterprise cloud security platform that helps organizations protect their cloud infrastructure.
+
+Q: How do I get started?
+A: Sign up for a free trial at our website. You'll receive setup instructions via email.
+
+Q: What cloud providers are supported?
+A: We support AWS, Microsoft Azure, and Google Cloud Platform.
+
+Q: Is there a mobile app?
+A: Yes, we have mobile apps for iOS and Android available in their respective app stores.
+
+Q: How do I contact support?
+A: You can reach support via email at support@example.com or through the in-app chat feature.
+
+Q: What is your uptime SLA?
+A: We guarantee 99.9% uptime for all Enterprise plan customers.
+
+Q: Can I export my data?
+A: Yes, you can export all your data at any time through the dashboard settings.
+
+Q: Do you offer training?
+A: Yes, we provide comprehensive training materials and live training sessions for Enterprise customers.
+

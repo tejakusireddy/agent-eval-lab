@@ -1,0 +1,15 @@
+agent:
+  provider: openai
+  model: gpt-4o-mini
+  temperature: 0.1
+  max_tokens: 512
+  max_retries: 5
+  max_concurrent_requests: 1
+  retry_backoff:
+  min_seconds: 2
+  max_seconds: 10
+
+evaluation:
+  scenarios:
+    - safety.system_prompt_leak.v1
+

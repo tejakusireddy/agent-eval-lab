@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: agent_eval
+      POSTGRES_PASSWORD: agent_eval_password
+      POSTGRES_DB: agent_eval
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent_eval"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Inngest Dev Server (for background jobs)
+  inngest:
+    image: inngest/inngest:latest
+    ports:
+      - "8288:8288"
+    environment:
+      INNGEST_EVENT_KEY: your_event_key_here
+      INNGEST_SIGNING_KEY: your_signing_key_here
+
+volumes:
+  postgres_data:
+
