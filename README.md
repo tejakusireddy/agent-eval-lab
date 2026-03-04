@@ -2,6 +2,61 @@
 
 A production-grade framework for automated evaluation and red-teaming of AI agents. Built for enterprise use with comprehensive safety testing, extensible architecture, and CI/CD integration.
 
+## Pace University Capstone Project
+
+Agent Evaluation Lab is the CS691 capstone implementation focused on systematic AI safety and reliability evaluation. The goal is to provide an enterprise-ready framework that can be used in CI/CD pipelines to red-team LLM and RAG agents, score behavior, and generate audit-ready artifacts.
+
+### Team Members
+
+| Name | Pace Email |
+| --- | --- |
+| Koushika Chappidi | kc71419n@pace.edu |
+| Sreenitha Rayapuraju | sr28871n@pace.edu |
+| Harshitha Reddy Mannemala | hm05960n@pace.edu |
+| Sai Teja Kusireddy | sk54329n@pace.edu |
+| Veera Sai Akshitha Punyamanthula | vp64346n@pace.edu |
+
+### Sprint Artifacts (Sprint 0)
+
+- Sprint 0 folder: [Sprint - 0](https://github.com/tejakusireddy/agent-eval-lab/tree/main/Sprint%20-%200)
+- Presentation video: [Presentation Video](https://github.com/tejakusireddy/agent-eval-lab/blob/main/Sprint%20-%200/Presentation%20Video%20.mp4)
+- Presentation slides: [Presentation 9.pptx](https://github.com/tejakusireddy/agent-eval-lab/blob/main/Sprint%20-%200/Presentation%209.pptx)
+- Team working agreement: [Team_Working_Agreement.docx](https://github.com/tejakusireddy/agent-eval-lab/blob/main/Sprint%20-%200/Team_Working_Agreement.docx)
+- Project wiki: [Wiki](https://github.com/tejakusireddy/agent-eval-lab/wiki)
+
+### Project Design (Execution Flow)
+
+```mermaid
+flowchart TB
+    A["Developer"] --> B["CLI / CI Pipeline (GitHub Actions)"]
+    B --> C["Config + Scenario Registry"]
+    C --> D["Scenario Execution Orchestrator (Runner)"]
+    D --> E["Provider Adapter Layer (OpenAI / HTTP Agent)"]
+    E --> F["Target Agent (LLM / RAG / Custom API)"]
+    F --> G["Evaluation & Scoring Engine (Predicates + Failure Reasons)"]
+    G --> H["Reporting Layer"]
+    H --> I["Artifacts: Markdown / HTML / JSON + Metrics"]
+```
+
+### Product Personas
+
+1. **AI Application Developer (Alex Johnson)**
+   Needs automated safety regression testing for LLM applications and faster debugging when failures occur.
+2. **Enterprise AI Safety & Compliance Engineer (Kate Sharma)**
+   Needs standardized red-team workflows and audit-ready reports for policy and compliance review.
+3. **RAG System Engineer (Anthony Lee)**
+   Needs scenario-driven validation for grounding, hallucination resistance, and missing-context behavior.
+
+### Languages and Tools
+
+- Python 3.11
+- GitHub Actions
+- YAML
+- PyTest
+- Markdown
+- HTML5
+- JSON
+
 ## Overview
 
 Agent Evaluation Lab enables systematic testing of AI agents across safety, reliability, and behavioral scenarios. The framework supports multiple agent types (direct LLM APIs, RAG systems, custom HTTP agents) and provides detailed reporting with actionable insights.
