@@ -82,7 +82,7 @@ This repository now ships a complete end-to-end MVP suitable for capstone demo a
    - Markdown, HTML, JSON artifacts
    - Hardened harmful-response detection with regression tests
 
-## Demo Flow (Professor-Friendly)
+## Demo Flow
 
 Use this exact sequence in class:
 
