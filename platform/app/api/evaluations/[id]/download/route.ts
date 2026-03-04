@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { normalizeReportJson } from "@/app/_utils/report-json";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -46,7 +47,7 @@ export async function GET(
     let filename: string;
 
     if (format === "json") {
-      content = JSON.stringify(evaluation.reportJson, null, 2);
+      content = JSON.stringify(normalizeReportJson(evaluation.reportJson), null, 2);
       contentType = "application/json";
       filename = `evaluation-${evaluation.id}.json`;
     } else if (format === "markdown") {
@@ -77,4 +78,3 @@ export async function GET(
     );
   }
 }
-

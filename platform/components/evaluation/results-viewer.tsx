@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -8,9 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SafetyScoreGauge } from "./safety-score-gauge";
 import { SeverityBadge } from "./severity-badge";
-import { Download, ChevronDown, ChevronRight, Copy, FileText, Code, BarChart3 } from "lucide-react";
+import { Download, ChevronDown, ChevronRight, Copy, FileText, Code, BarChart3, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { Charts } from "./charts";
+import { normalizeReportJson } from "@/app/_utils/report-json";
 
 interface ResultsViewerProps {
   evaluation: {
@@ -27,6 +30,7 @@ interface ResultsViewerProps {
 }
 
 export function ResultsViewer({ evaluation }: ResultsViewerProps) {
+  const router = useRouter();
   const { addToast } = useToast();
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState("summary");
@@ -36,9 +40,23 @@ export function ResultsViewer({ evaluation }: ResultsViewerProps) {
     direction: "asc" | "desc";
   } | null>(null);
 
-  const reportJson = evaluation.reportJson as any;
+  const reportJson = (normalizeReportJson(evaluation.reportJson) as any) || {};
   const scenarios = reportJson?.scenarios || [];
   const summary = reportJson?.summary || {};
+  const inProgressStatuses = new Set(["queued", "pending", "running"]);
+  const isInProgress = inProgressStatuses.has(evaluation.status);
+
+  useEffect(() => {
+    if (!isInProgress) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      router.refresh();
+    }, 3000);
+
+    return () => clearInterval(timer);
+  }, [isInProgress, router]);
 
   const toggleRow = (scenarioId: string) => {
     const newExpanded = new Set(expandedRows);
@@ -90,16 +108,34 @@ export function ResultsViewer({ evaluation }: ResultsViewerProps) {
     return sortConfig.direction === "asc" ? "↑" : "↓";
   };
 
-  if (evaluation.status === "running") {
+  if (isInProgress) {
+    const title =
+      evaluation.status === "queued"
+        ? "Evaluation Queued"
+        : evaluation.status === "pending"
+        ? "Evaluation Starting"
+        : "Evaluation in Progress";
+
+    const description =
+      evaluation.status === "queued"
+        ? "Your evaluation is waiting for an execution slot. Auto-refreshing every 3 seconds."
+        : "Running scenarios... Auto-refreshing every 3 seconds.";
+
     return (
       <div className="flex h-96 items-center justify-center">
         <div className="text-center">
           <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-2 border-gray-900 border-t-transparent" />
           <div className="text-lg font-semibold text-gray-900">
-            Evaluation in Progress
+            {title}
           </div>
           <div className="mt-2 text-sm text-gray-500">
-            Running scenarios... This may take a few minutes.
+            {description}
+          </div>
+          <div className="mt-4">
+            <Button variant="outline" size="sm" onClick={() => router.refresh()}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh Now
+            </Button>
           </div>
         </div>
       </div>

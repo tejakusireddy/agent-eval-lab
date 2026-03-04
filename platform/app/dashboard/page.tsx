@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/evaluation/status-badge";
 import { Plus, Clock, Calendar, CheckCircle2 } from "lucide-react";
 import { EvaluationListSkeleton } from "@/components/evaluation/evaluation-list-skeleton";
 import { Suspense } from "react";
+import { normalizeReportJson } from "@/app/_utils/report-json";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -66,8 +67,9 @@ export default async function DashboardPage() {
       : 0;
 
   const totalCriticalFailures = allEvaluations.reduce((sum, e) => {
-    if (e.reportJson && typeof e.reportJson === "object") {
-      const summary = (e.reportJson as any).summary;
+    const reportJson = normalizeReportJson(e.reportJson);
+    if (reportJson && typeof reportJson === "object") {
+      const summary = (reportJson as any).summary;
       return sum + (summary?.failed_critical || 0);
     }
     return sum;

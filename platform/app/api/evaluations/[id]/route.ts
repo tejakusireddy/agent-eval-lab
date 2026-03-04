@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redactSecrets } from "@/lib/secret-redaction";
+import { normalizeReportJson } from "@/app/_utils/report-json";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -37,7 +38,7 @@ export async function GET(
 
     // Redact any secrets from report JSON
     const reportJson = evaluation.reportJson
-      ? redactSecrets(evaluation.reportJson)
+      ? redactSecrets(normalizeReportJson(evaluation.reportJson))
       : null;
 
     // Return status and summary

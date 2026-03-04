@@ -3,25 +3,6 @@
 import Link from "next/link";
 import { ArrowRight, Terminal } from "lucide-react";
 
-const clerkEnabled =
-  typeof window !== "undefined" &&
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY !== "pk_test_..." &&
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith("pk_");
-
-let SignInButton: any = ({ children }: any) => <Link href="/dashboard">{children}</Link>;
-let SignUpButton: any = ({ children }: any) => <Link href="/dashboard">{children}</Link>;
-
-if (clerkEnabled) {
-  try {
-    const clerk = require("@clerk/nextjs");
-    SignInButton = clerk.SignInButton;
-    SignUpButton = clerk.SignUpButton;
-  } catch {
-    // Clerk not available
-  }
-}
-
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white">
@@ -35,16 +16,18 @@ export default function LandingPage() {
               </span>
             </div>
             <div className="flex items-center gap-4">
-              <SignInButton mode="modal">
-                <button className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-                  Sign In
-                </button>
-              </SignInButton>
-              <SignUpButton mode="modal">
-                <button className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 transition-colors">
-                  Get Started
-                </button>
-              </SignUpButton>
+              <Link
+                href="/dashboard"
+                className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/dashboard"
+                className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 transition-colors"
+              >
+                Get Started
+              </Link>
             </div>
           </div>
         </div>
@@ -61,15 +44,13 @@ export default function LandingPage() {
             Red teaming, safety scoring, and reliability testing in one command.
           </p>
           <div className="mt-10 flex items-center justify-center gap-4">
-            <SignUpButton mode="modal">
-              <Link
-                href="/dashboard"
-                className="group flex items-center gap-2 rounded-md bg-gray-900 px-6 py-3 text-base font-medium text-white hover:bg-gray-800 transition-colors"
-              >
-                Start Evaluating
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-            </SignUpButton>
+            <Link
+              href="/dashboard"
+              className="group flex items-center gap-2 rounded-md bg-gray-900 px-6 py-3 text-base font-medium text-white hover:bg-gray-800 transition-colors"
+            >
+              Start Evaluating
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
             <Link
               href="/scenarios"
               className="rounded-md border border-gray-300 px-6 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 transition-colors"

@@ -61,6 +61,48 @@ flowchart TB
 
 Agent Evaluation Lab enables systematic testing of AI agents across safety, reliability, and behavioral scenarios. The framework supports multiple agent types (direct LLM APIs, RAG systems, custom HTTP agents) and provides detailed reporting with actionable insights.
 
+## MVP Status (Sprint 0-1)
+
+This repository now ships a complete end-to-end MVP suitable for capstone demo and hiring-manager review:
+
+1. **Target agent implementation (what is being tested):**
+   - `agent_eval_lab/rag_service/rag_agent.py`
+   - `agent_eval_lab/rag_service/server.py`
+   - HTTP service on `http://localhost:8000` with:
+     - `GET /health`
+     - `POST /agent`
+     - `GET /` (built-in playground UI)
+2. **Evaluation platform (what runs red teaming):**
+   - Next.js app on `http://localhost:3000`
+   - New Evaluation wizard (OpenAI + HTTP Agent)
+   - Agent Playground at `/sandbox` for pre-evaluation validation
+   - Auto-refreshing evaluation status/results page
+3. **Scoring + reporting:**
+   - PASS / FAIL_MINOR / FAIL_CRITICAL predicate scoring
+   - Markdown, HTML, JSON artifacts
+   - Hardened harmful-response detection with regression tests
+
+## Demo Flow (Professor-Friendly)
+
+Use this exact sequence in class:
+
+1. Open `http://localhost:8000/` and query the agent directly (show target agent behavior first).
+2. Open `http://localhost:3000/sandbox` and test the same agent through platform health/query checks.
+3. Run evaluation scenarios from the same page.
+4. Open results page and show:
+   - Safety score
+   - PASS / FAIL counts
+   - scenario-level failure reasons
+   - report downloads (JSON/MD/HTML)
+
+## Where Is The Agent Being Tested?
+
+Agent Evaluation Lab is a **red-team evaluator**. It can test external agents, but this project also includes an in-repo target agent:
+
+- **Built target agent:** `agent_eval_lab/rag_service/rag_agent.py`
+- **Served over HTTP:** `agent_eval_lab/rag_service/server.py` (`:8000`)
+- **Connected by evaluator through:** `agent_eval_lab/adapters/http_agent_adapter.py`
+
 ## Features
 
 - **Multi-Agent Support**: Evaluate OpenAI models directly or HTTP-based agents (RAG systems, custom APIs)
@@ -87,7 +129,7 @@ pip install -e ".[dev]"
 export OPENAI_API_KEY="your-api-key-here"
 ```
 
-### Basic Usage
+### CLI Usage
 
 ```bash
 # Run all scenarios against OpenAI
@@ -98,6 +140,61 @@ agent-eval run-all-scenarios --config-file examples/rag_agent_config.yaml
 
 # Override model settings
 agent-eval run-all-scenarios --model gpt-4o --temperature 0.0
+```
+
+### Full-Stack Demo (Agent + Platform)
+
+Run these in separate terminals:
+
+```bash
+# Terminal 1: Start target HTTP agent UI + API
+cd agent-eval-lab
+export OPENAI_API_KEY="your-api-key-here"
+python3.11 -m agent_eval_lab.rag_service.server
+```
+
+```bash
+# Terminal 2: Start evaluation platform
+cd agent-eval-lab/platform
+npm install
+npm run db:generate
+npm run db:push
+npm run dev
+```
+
+Open:
+
+1. `http://localhost:8000/` (target agent frontend)
+2. `http://localhost:3000/sandbox` (agent playground + evaluation runner)
+
+## HTTP Agent Contract (For Any New Agent)
+
+To evaluate any custom agent through HTTP mode, your service must expose:
+
+1. `GET /health` returning `200 OK`
+2. `POST /agent` accepting:
+
+```json
+{
+  "query": "user prompt"
+}
+```
+
+3. Response JSON containing at least:
+
+```json
+{
+  "answer": "agent response text"
+}
+```
+
+Optional fields supported in UI:
+
+```json
+{
+  "context_snippets": ["..."],
+  "metadata": { "model": "..." }
+}
 ```
 
 ## Architecture
@@ -409,6 +506,32 @@ Safety Score = (sum of all scenario scores) / (number of scenarios)
 ```
 
 Capped at 100.0 to ensure it never exceeds 100%.
+
+## Troubleshooting
+
+### 1. Platform page looks unstyled / console shows `_next/static` 404
+
+```bash
+cd platform
+rm -rf .next
+npm run dev
+```
+
+Then do a browser hard reload (Empty Cache and Hard Reload).
+
+### 2. HTTP agent ping fails (`/api/agent/ping` 500)
+
+- Ensure target agent is running on `:8000`
+- Verify:
+
+```bash
+curl -i http://127.0.0.1:8000/health
+```
+
+### 3. Evaluation page stays on "Running"
+
+The UI now auto-refreshes while status is `queued/pending/running`.  
+If needed, use the "Refresh Now" button on the evaluation page.
 
 ## Contributing
 

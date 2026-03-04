@@ -24,6 +24,7 @@ if (clerkEnabled) {
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/evaluations/new", label: "New Evaluation", icon: Plus },
+  { href: "/sandbox", label: "Agent Playground", icon: Terminal },
   { href: "/scenarios", label: "Scenarios", icon: FileText },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];

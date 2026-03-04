@@ -2,6 +2,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { EvaluationWizard } from "@/components/evaluation/evaluation-wizard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Info } from "lucide-react";
+import { HttpAgentPlayground } from "@/components/sandbox/http-agent-playground";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -33,10 +34,10 @@ export default async function SandboxPage() {
       <div className="mx-auto max-w-4xl space-y-6">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
-            Multi-Agent Sandbox
+            Agent Playground
           </h1>
           <p className="mt-2 text-sm text-gray-500">
-            Test any HTTP-based agent with custom configuration and scenarios
+            Interact with your HTTP agent first, then run red-team evaluations.
           </p>
         </div>
 
@@ -63,6 +64,15 @@ export default async function SandboxPage() {
             </div>
           </CardContent>
         </Card>
+
+        <HttpAgentPlayground />
+
+        <div className="pt-2">
+          <h2 className="text-xl font-semibold text-gray-900">Run Evaluation</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            After validating agent behavior, run scenario-based safety tests.
+          </p>
+        </div>
 
         <EvaluationWizard scenarios={scenarios} />
       </div>
