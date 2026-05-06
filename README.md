@@ -50,6 +50,11 @@ flowchart TB
 ### Languages and Tools
 
 - Python 3.11
+- TypeScript
+- Next.js 14
+- TailwindCSS
+- Prisma
+- PostgreSQL
 - GitHub Actions
 - YAML
 - PyTest
@@ -520,15 +525,18 @@ agent-eval-lab/
 │   ├── cli/                 # Command-line interface
 │   ├── config/              # Configuration management
 │   ├── evaluator/           # Evaluation and scoring logic
+│   ├── exporters/           # External export helpers
+│   ├── importers/           # External trace/evaluation importers
+│   ├── policy/              # Release gate policy engine
 │   ├── rag_service/         # RAG agent service (demo)
 │   ├── reporter/            # Report generators (Markdown, HTML, JSON)
 │   ├── runner/              # Scenario execution engine
 │   ├── policy/              # Release gate policy engine
 │   └── scenarios/           # Scenario base classes and loaders
+├── platform/                # Next.js dashboard, API routes, and Prisma schema
 ├── scenario_definitions/    # YAML scenario files
 ├── policy/                  # Policy-as-code YAML definitions
 ├── examples/                # Example configurations
-├── docs/                    # Documentation
 ├── tests/                   # Test suite
 ├── reports/                 # Generated reports (gitignored)
 ├── README.md                # This file
