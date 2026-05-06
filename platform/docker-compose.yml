@@ -24,6 +24,75 @@ services:
       INNGEST_EVENT_KEY: your_event_key_here
       INNGEST_SIGNING_KEY: your_signing_key_here
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # Requires a Dockerfile at the repository root (not present in this repo yet).
+  celery-worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command:
+      - celery
+      - -A
+      - agent_eval_lab.worker.celery_app
+      - worker
+      - --loglevel=info
+      - --concurrency=2
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://agent_eval:agent_eval_password@postgres:5432/agent_eval?schema=public}
+      REDIS_URL: redis://redis:6379/0
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      BRIDGE_SECRET: ${BRIDGE_SECRET:-}
+      WORKER_BRIDGE_URL: http://worker-bridge:8001
+      TOOL_ENV_URL: http://tool-env:8002
+      SESSION_TOKEN: ${SESSION_TOKEN:-}
+    depends_on:
+      - redis
+      - postgres
+
+  worker-bridge:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command:
+      - python
+      - -m
+      - agent_eval_lab.worker.bridge
+    ports:
+      - "8001:8001"
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      BRIDGE_PORT: "8001"
+      BRIDGE_SECRET: ${BRIDGE_SECRET:-}
+      WEBHOOK_FORWARD_SECRET: ${WEBHOOK_FORWARD_SECRET:-}
+      TOOL_ENV_URL: http://tool-env:8002
+      SESSION_TOKEN: ${SESSION_TOKEN:-}
+    depends_on:
+      - redis
+
+  tool-env:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command:
+      - python
+      - -m
+      - agent_eval_lab.tool_env.server
+    ports:
+      - "8002:8002"
+    environment:
+      AGENT_EVAL_API_KEY: ${AGENT_EVAL_API_KEY:-}
+      AGENT_EVAL_BASE_URL: ${AGENT_EVAL_BASE_URL:-http://platform:3000}
+      TOOL_ENV_PORT: "8002"
+      SESSION_TOKEN: ${SESSION_TOKEN:-}
+
 volumes:
   postgres_data:
+  redis_data:
 

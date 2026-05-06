@@ -3,22 +3,22 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center rounded-xl text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-gray-900 text-white hover:bg-gray-800",
-        destructive: "bg-red-600 text-white hover:bg-red-700",
-        outline: "border border-gray-200 bg-white hover:bg-gray-50",
-        secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200",
-        ghost: "hover:bg-gray-100",
-        link: "text-gray-900 underline-offset-4 hover:underline",
+        default: "bg-accent text-accent-foreground shadow-panel hover:bg-accent/90",
+        destructive: "bg-danger text-white shadow-panel hover:bg-danger/90",
+        outline: "border border-border bg-panel text-foreground shadow-panel hover:border-border-strong hover:bg-panel-muted",
+        secondary: "bg-panel-muted text-foreground shadow-none hover:bg-panel-muted/80",
+        ghost: "text-foreground-muted shadow-none hover:bg-panel-muted hover:text-foreground",
+        link: "text-foreground underline-offset-4 hover:text-accent hover:underline shadow-none",
       },
       size: {
-        default: "h-9 px-4 py-2",
+        default: "h-10 px-4 py-2",
         sm: "h-8 px-3 text-xs",
-        lg: "h-11 px-8",
-        icon: "h-9 w-9",
+        lg: "h-11 px-5",
+        icon: "h-10 w-10",
       },
     },
     defaultVariants: {

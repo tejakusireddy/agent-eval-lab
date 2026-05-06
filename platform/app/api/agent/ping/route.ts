@@ -5,12 +5,62 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
+const SUPPORTED_HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH"]);
 
 function timeoutSignal(ms: number): AbortSignal {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   controller.signal.addEventListener("abort", () => clearTimeout(timer));
   return controller.signal;
+}
+
+function normalizePath(value: unknown, fallback: string): string {
+  const raw = typeof value === "string" ? value.trim() : "";
+  const selected = raw || fallback;
+  if (selected.startsWith("/")) {
+    return selected;
+  }
+  return `/${selected}`;
+}
+
+function toOptionalString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function buildAuthHeaderMap(params: {
+  authHeader: string;
+  authTokenEnvVar: string | null;
+  authScheme: string;
+}): { headers: Record<string, string>; error?: string } {
+  const { authHeader, authTokenEnvVar, authScheme } = params;
+  if (!authTokenEnvVar) {
+    return { headers: {} };
+  }
+  const token = process.env[authTokenEnvVar];
+  if (!token) {
+    return {
+      headers: {},
+      error: `Auth token env var '${authTokenEnvVar}' is not configured on server`,
+    };
+  }
+
+  const normalizedScheme = authScheme.trim().toLowerCase();
+  const useRawToken =
+    normalizedScheme.length === 0 ||
+    normalizedScheme === "none" ||
+    normalizedScheme === "raw";
+  const headerValue = useRawToken
+    ? token
+    : `${authScheme.trim()} ${token}`.trim();
+  return {
+    headers: {
+      [authHeader]: headerValue,
+    },
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -37,10 +87,46 @@ export async function POST(request: NextRequest) {
       }
 
       const baseUrl = baseUrlRaw.replace(/\/+$/, "");
+      const endpointPath = normalizePath(body?.http_agent_endpoint_path, "/agent");
+      const healthPath = normalizePath(body?.http_agent_health_path, "/health");
+      const method = String(body?.http_agent_method || "POST").toUpperCase();
+      const promptField = toOptionalString(body?.http_agent_prompt_field) || "query";
+      const authHeader = toOptionalString(body?.http_agent_auth_header) || "Authorization";
+      const authTokenEnvVar = toOptionalString(body?.http_agent_auth_env_var);
+      const authScheme = toOptionalString(body?.http_agent_auth_scheme) || "Bearer";
+
+      if (!SUPPORTED_HTTP_METHODS.has(method)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Unsupported HTTP method '${method}'. Supported methods: GET, POST, PUT, PATCH`,
+          },
+          { status: 400 }
+        );
+      }
+
+      const auth = buildAuthHeaderMap({
+        authHeader,
+        authTokenEnvVar,
+        authScheme,
+      });
+      if (auth.error) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: auth.error,
+          },
+          { status: 400 }
+        );
+      }
 
       // Prefer health endpoint when available.
-      const healthResponse = await fetch(`${baseUrl}/health`, {
+      const healthEndpoint = `${baseUrl}${healthPath}`;
+      const healthResponse = await fetch(healthEndpoint, {
         method: "GET",
+        headers: {
+          ...auth.headers,
+        },
         signal: timeoutSignal(timeoutMs),
       });
 
@@ -56,9 +142,41 @@ export async function POST(request: NextRequest) {
           provider,
           message: "HTTP agent is reachable",
           details: {
-            endpoint: `${baseUrl}/health`,
+            endpoint: healthEndpoint,
             status: healthResponse.status,
             health,
+          },
+        });
+      }
+
+      const probeEndpoint = `${baseUrl}${endpointPath}`;
+      const probeStartedAt = Date.now();
+      const probeUrl =
+        method === "GET"
+          ? `${probeEndpoint}?${encodeURIComponent(promptField)}=${encodeURIComponent("ping")}`
+          : probeEndpoint;
+
+      const probeResponse = await fetch(probeUrl, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...auth.headers,
+        },
+        body: method === "GET" ? undefined : JSON.stringify({ [promptField]: "ping" }),
+        signal: timeoutSignal(timeoutMs),
+      });
+
+      const probeLatencyMs = Date.now() - probeStartedAt;
+      if (probeResponse.ok) {
+        return NextResponse.json({
+          success: true,
+          provider,
+          message: "Execution endpoint is reachable",
+          details: {
+            endpoint: probeEndpoint,
+            method,
+            status: probeResponse.status,
+            latencyMs: probeLatencyMs,
           },
         });
       }
@@ -66,8 +184,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: `Health check failed with status ${healthResponse.status}`,
-          details: { endpoint: `${baseUrl}/health` },
+          error:
+            `Health check failed with status ${healthResponse.status}; ` +
+            `execution probe failed with status ${probeResponse.status}`,
+          details: { endpoint: healthEndpoint, probeEndpoint, method },
         },
         { status: 502 }
       );

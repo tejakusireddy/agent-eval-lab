@@ -9,6 +9,10 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Tooltip } from "@/components/ui/tooltip";
 import { Info, Search, X } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import {
+  computeThreatCoverage,
+  getDefaultRequiredThreatIds,
+} from "@/lib/threat-model";
 
 interface ScenarioSelectorProps {
   scenarios: any[];
@@ -21,9 +25,44 @@ interface ScenarioPreset {
   description: string;
   categories: string[];
   maxPerCategory?: number;
+  scenarioIds?: string[];
 }
 
 const SCENARIO_PRESETS: ScenarioPreset[] = [
+  {
+    name: "Enterprise Threat Surface",
+    description: "Balanced coverage across critical enterprise threat categories.",
+    categories: [],
+    scenarioIds: [
+      "safety.jailbreak_basic.v1",
+      "prompt_injection.instruction_override.v1",
+      "pii.ssn_request.v1",
+      "tool_abuse.code_execution.v1",
+      "multi_turn.multiturn_context_injection.v1",
+      "exfil.base64_encoding.v1",
+      "hallucination.rag_contradiction.v1",
+      "tool_abuse.network_scan.v1",
+      "vision_attacks.vision_ocr_injection.v1",
+      "multi_turn.multiturn_memory_poisoning.v1",
+    ],
+  },
+  {
+    name: "Release Candidate (Enterprise)",
+    description: "Policy-aligned baseline with required tags and mandatory scenarios.",
+    categories: [],
+    scenarioIds: [
+      "safety.jailbreak_basic.v1",
+      "safety.system_prompt_leak.v2",
+      "jailbreak.authority_impersonation.v1",
+      "prompt_injection.instruction_override.v1",
+      "prompt_injection.ignore_previous.v1",
+      "pii.ssn_request.v1",
+      "pii.credit_card.v1",
+      "tool_abuse.file_delete.v1",
+      "tool_abuse.code_execution.v1",
+      "safety.pii_leakage_email.v1",
+    ],
+  },
   {
     name: "Minimal Safety Test",
     description: "A quick test covering basic prompt injection and jailbreak scenarios.",
@@ -116,6 +155,18 @@ export function ScenarioSelector({
     return grouped;
   }, [filteredScenarios]);
 
+  const threatCoverage = useMemo(() => {
+    return computeThreatCoverage({
+      scenarioCatalog: scenarios.map((scenario) => ({
+        id: scenario.id,
+        tags: scenario.tags || [],
+        attack_type: scenario.attack_type || null,
+      })),
+      selectedScenarioIds: selectedScenarios,
+      requiredThreatIds: getDefaultRequiredThreatIds(),
+    });
+  }, [scenarios, selectedScenarios]);
+
   const toggleScenario = (scenarioId: string, e?: React.MouseEvent | React.ChangeEvent) => {
     if (e) {
       e.stopPropagation();
@@ -187,21 +238,27 @@ export function ScenarioSelector({
   };
 
   const applyPreset = (preset: ScenarioPreset) => {
-    const newSelection: string[] = [];
-    scenarios.forEach((s) => {
-      const category = s.id.split(".")[0];
-      if (preset.categories.includes(category)) {
-        if (preset.maxPerCategory) {
-          const categoryScenarios = scenarios.filter((sc) => sc.id.startsWith(category + "."));
-          const sorted = categoryScenarios.sort((a, b) => a.id.localeCompare(b.id));
-          if (sorted.findIndex((sc) => sc.id === s.id) < preset.maxPerCategory) {
+    let newSelection: string[] = [];
+
+    if (preset.scenarioIds && preset.scenarioIds.length > 0) {
+      const existing = new Set(scenarios.map((scenario) => scenario.id));
+      newSelection = preset.scenarioIds.filter((id) => existing.has(id));
+    } else {
+      scenarios.forEach((s) => {
+        const category = s.id.split(".")[0];
+        if (preset.categories.includes(category)) {
+          if (preset.maxPerCategory) {
+            const categoryScenarios = scenarios.filter((sc) => sc.id.startsWith(category + "."));
+            const sorted = categoryScenarios.sort((a, b) => a.id.localeCompare(b.id));
+            if (sorted.findIndex((sc) => sc.id === s.id) < preset.maxPerCategory) {
+              newSelection.push(s.id);
+            }
+          } else {
             newSelection.push(s.id);
           }
-        } else {
-          newSelection.push(s.id);
         }
-      }
-    });
+      });
+    }
     
     if (newSelection.length > 20) {
       onSelectionChange(newSelection.slice(0, 20));
@@ -482,6 +539,73 @@ export function ScenarioSelector({
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 shadow-sm">
+        <div className="mb-4 border-b border-gray-200 pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm font-semibold text-gray-900">
+              Threat Coverage
+            </div>
+            <Badge
+              variant={
+                threatCoverage.missingRequiredThreatIds.length === 0
+                  ? "success"
+                  : "warning"
+              }
+              className="text-xs"
+            >
+              {threatCoverage.coveredRequiredCount}/
+              {threatCoverage.totalRequiredCount} required threats
+            </Badge>
+          </div>
+          <div className="mt-1 text-xs text-gray-600">
+            Coverage: {threatCoverage.coveragePercent}%
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {threatCoverage.threats
+              .filter((threat) =>
+                threatCoverage.requiredThreatIds.includes(threat.threatId)
+              )
+              .map((threat) => (
+                <Badge
+                  key={threat.threatId}
+                  variant={threat.covered ? "success" : "outline"}
+                  className="text-xs"
+                >
+                  {threat.covered ? "Covered" : "Missing"}: {threat.title}
+                </Badge>
+              ))}
+          </div>
+          {threatCoverage.missingRequiredThreatIds.length > 0 && (
+            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+              <div className="text-xs font-medium text-amber-900">
+                Missing required threat categories. Add one scenario from each:
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {threatCoverage.threats
+                  .filter((threat) =>
+                    threatCoverage.missingRequiredThreatIds.includes(threat.threatId)
+                  )
+                  .flatMap((threat) =>
+                    threat.recommendedToAdd.slice(0, 1).map((scenarioId) => ({
+                      threatId: threat.threatId,
+                      scenarioId,
+                    }))
+                  )
+                  .map((entry) => (
+                    <Button
+                      key={`${entry.threatId}-${entry.scenarioId}`}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleScenario(entry.scenarioId)}
+                      disabled={selectedScenarios.includes(entry.scenarioId)}
+                    >
+                      Add {entry.scenarioId}
+                    </Button>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm text-gray-600">

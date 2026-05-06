@@ -1,85 +1,153 @@
-import { NextResponse } from "next/server";
-import { getAuth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { runEvaluation } from "@/lib/run-eval";
-import { randomUUID } from "crypto";
-import { join } from "path";
+import { NextRequest, NextResponse } from "next/server";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function POST(request: Request) {
+function isRecord(x: unknown): x is Record<string, unknown> {
+  return typeof x === "object" && x !== null && !Array.isArray(x);
+}
+
+// DEPRECATED: This endpoint is a legacy execution path.
+// All evaluation requests are forwarded to POST /api/evaluate.
+// This file exists only for backward compatibility.
+// TODO(cleanup): Remove after confirming no external callers
+// remain. Added: 2026-04-02. Track via server logs for
+// "legacy_eval_run_called" events.
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  console.warn(
+    JSON.stringify({
+      event: "legacy_eval_run_called",
+      message:
+        "POST /api/evaluations/run is deprecated. " +
+        "Use POST /api/evaluate or POST /api/v1/eval instead.",
+      timestamp: new Date().toISOString(),
+      path: "/api/evaluations/run",
+    })
+  );
+
+  let body: unknown;
   try {
-    const { userId, orgId } = getAuth();
-    if (!userId || !orgId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  if (!isRecord(body)) {
+    return NextResponse.json(
+      { error: "Expected JSON object body" },
+      { status: 400 }
+    );
+  }
+
+  const legacy = body;
+  const config: Record<string, unknown> = isRecord(legacy.config)
+    ? legacy.config
+    : {};
+
+  const rawProvider = config["provider"];
+  const agentType =
+    typeof rawProvider === "string" && rawProvider.trim() !== ""
+      ? rawProvider
+      : "openai";
+
+  const scenarioIdsRaw = legacy.scenarioIds;
+  const selectedScenarios = Array.isArray(scenarioIdsRaw)
+    ? scenarioIdsRaw.filter((id): id is string => typeof id === "string")
+    : [];
+
+  const canonicalBody: Record<string, unknown> = {
+    agentType,
+    agentConfig: config,
+    selectedScenarios,
+    projectId:
+      typeof legacy.projectId === "string" ? legacy.projectId : undefined,
+    evaluationName:
+      typeof legacy.name === "string" ? legacy.name : undefined,
+    releaseMode: "exploratory",
+  };
+
+  const canonicalUrl = new URL("/api/evaluate", request.url).toString();
+
+  try {
+    const forwardResponse = await fetch(canonicalUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        cookie: request.headers.get("cookie") ?? "",
+        authorization: request.headers.get("authorization") ?? "",
+      },
+      body: JSON.stringify(canonicalBody),
+    });
+
+    let responseData: unknown;
+    try {
+      responseData = await forwardResponse.json();
+    } catch {
+      return NextResponse.json(
+        {
+          error: "Invalid response from evaluation service",
+          _deprecated: true,
+          _migrate_to: "POST /api/evaluate or POST /api/v1/eval",
+        },
+        { status: 502 }
+      );
     }
 
-    const body = await request.json();
-    const {
-      projectId,
-      name,
-      config,
-      scenarioIds,
-    }: {
-      projectId: string;
-      name?: string;
-      config: any;
-      scenarioIds: string[];
-    } = body;
+    if (!isRecord(responseData)) {
+      return NextResponse.json(
+        {
+          error: "Unexpected response shape",
+          _deprecated: true,
+          _migrate_to: "POST /api/evaluate or POST /api/v1/eval",
+        },
+        { status: 502 }
+      );
+    }
 
-    // Create evaluation record
-    const evaluation = await prisma.evaluation.create({
-      data: {
-        projectId,
-        name: name || `Evaluation ${new Date().toLocaleString()}`,
-        status: "pending",
-        scenarios: scenarioIds,
-        config,
-      },
+    const deprecatedPayload = {
+      ...responseData,
+      _deprecated: true as const,
+      _migrate_to: "POST /api/evaluate or POST /api/v1/eval",
+    };
+
+    if (
+      forwardResponse.ok &&
+      typeof responseData.evaluationId === "string"
+    ) {
+      return NextResponse.json(
+        {
+          ...deprecatedPayload,
+          evaluationId: responseData.evaluationId,
+          status:
+            typeof responseData.status === "string"
+              ? responseData.status
+              : "queued",
+        },
+        { status: forwardResponse.status }
+      );
+    }
+
+    return NextResponse.json(deprecatedPayload, {
+      status: forwardResponse.status,
     });
-
-    // Start evaluation in background (async)
-    const workDir = join("/tmp", "agent-eval", evaluation.id);
-    runEvaluation(config, scenarioIds, workDir)
-      .then(async (result) => {
-        await prisma.evaluation.update({
-          where: { id: evaluation.id },
-          data: {
-            status: result.success ? "completed" : "failed",
-            safetyScore: result.data?.summary?.safety_score || null,
-            reportHtml: result.data?.reports?.html || null,
-            reportJson: result.data?.reports?.json ? JSON.parse(result.data.reports.json) : null,
-            reportMarkdown: result.data?.reports?.md || null,
-            errorMessage: result.error || null,
-            completedAt: new Date(),
-          },
-        });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Forward failed";
+    console.error(
+      JSON.stringify({
+        event: "legacy_eval_run_forward_failed",
+        error: message,
+        timestamp: new Date().toISOString(),
       })
-      .catch(async (error) => {
-        await prisma.evaluation.update({
-          where: { id: evaluation.id },
-          data: {
-            status: "failed",
-            errorMessage: error.message,
-            completedAt: new Date(),
-          },
-        });
-      });
-
-    return NextResponse.json({
-      evaluationId: evaluation.id,
-      status: "pending",
-    });
-  } catch (error: any) {
-    console.error("Evaluation run API error:", error);
+    );
     return NextResponse.json(
-      { 
-        error: error.message || "Internal server error",
-        details: process.env.NODE_ENV === "development" ? error.stack : undefined
+      {
+        error: "Evaluation request failed",
+        detail: message,
+        _deprecated: true,
+        _migrate_to: "POST /api/evaluate or POST /api/v1/eval",
       },
       { status: 500 }
     );
   }
 }
-

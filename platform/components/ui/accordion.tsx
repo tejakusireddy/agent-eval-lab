@@ -76,13 +76,13 @@ export function AccordionTrigger({ children, className }: AccordionTriggerProps)
       type="button"
       onClick={() => context.toggleItem(itemContext.value)}
       className={cn(
-        "flex w-full items-center justify-between p-4 text-left font-medium text-gray-900 transition-colors hover:bg-gray-50",
+        "flex w-full items-center justify-between rounded-xl p-4 text-left font-medium text-foreground transition-colors hover:bg-panel-muted",
         className
       )}
     >
       {children}
       <ChevronDown
-        className={cn("h-4 w-4 text-gray-500 transition-transform", isOpen && "rotate-180")}
+        className={cn("h-4 w-4 text-foreground-subtle transition-transform", isOpen && "rotate-180")}
       />
     </button>
   );
@@ -111,10 +111,9 @@ export function AccordionContent({ children, className }: AccordionContentProps)
 function AccordionItemWithContext({ value, children, className }: AccordionItemProps) {
   return (
     <AccordionItemContext.Provider value={{ value }}>
-      <div className={cn("border border-gray-200 rounded-lg", className)}>{children}</div>
+      <div className={cn("rounded-2xl border border-border bg-panel shadow-panel", className)}>{children}</div>
     </AccordionItemContext.Provider>
   );
 }
 
 export { AccordionItemWithContext as AccordionItem };
-

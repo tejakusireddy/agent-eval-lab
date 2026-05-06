@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -54,30 +56,30 @@ function ToastItem({
   onRemove: (id: string) => void;
 }) {
   const variantStyles = {
-    default: "bg-white border-gray-200",
-    success: "bg-green-50 border-green-200",
-    error: "bg-red-50 border-red-200",
-    warning: "bg-yellow-50 border-yellow-200",
+    default: "bg-panel border-border",
+    success: "bg-success/10 border-success/15",
+    error: "bg-danger/10 border-danger/15",
+    warning: "bg-warning/10 border-warning/15",
   };
 
   return (
     <div
       className={cn(
-        "flex w-full max-w-sm items-start gap-3 rounded-lg border p-4 shadow-lg",
+        "flex w-full max-w-sm items-start gap-3 rounded-2xl border p-4 shadow-lift",
         variantStyles[toast.variant || "default"]
       )}
     >
       <div className="flex-1">
         {toast.title && (
-          <div className="font-semibold text-gray-900">{toast.title}</div>
+          <div className="font-semibold text-foreground">{toast.title}</div>
         )}
         {toast.description && (
-          <div className="text-sm text-gray-600">{toast.description}</div>
+          <div className="text-sm text-foreground-muted">{toast.description}</div>
         )}
       </div>
       <button
         onClick={() => onRemove(toast.id)}
-        className="text-gray-400 hover:text-gray-600"
+        className="text-foreground-subtle hover:text-foreground-muted"
       >
         <X className="h-4 w-4" />
       </button>
@@ -92,4 +94,3 @@ export function useToast() {
   }
   return context;
 }
-

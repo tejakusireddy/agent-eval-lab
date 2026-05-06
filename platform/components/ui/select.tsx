@@ -41,14 +41,14 @@ const SelectTrigger = React.forwardRef<
       ref={ref}
       type="button"
       className={cn(
-        "flex h-10 w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "flex h-10 w-full items-center justify-between rounded-xl border border-border bg-panel px-3.5 py-2 text-sm text-foreground shadow-sm ring-offset-background placeholder:text-foreground-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       onClick={() => context.setOpen(!context.open)}
       {...props}
     >
       {children}
-      <ChevronDown className="h-4 w-4 opacity-50" />
+      <ChevronDown className="h-4 w-4 text-foreground-subtle" />
     </button>
   );
 });
@@ -79,7 +79,7 @@ const SelectContent = React.forwardRef<
       <div
         ref={ref}
         className={cn(
-          "absolute z-50 min-w-[8rem] overflow-hidden rounded-md border border-gray-200 bg-white shadow-md",
+          "absolute z-50 min-w-[8rem] overflow-hidden rounded-xl border border-border bg-panel shadow-lift",
           className
         )}
         {...props}
@@ -102,8 +102,8 @@ const SelectItem = React.forwardRef<
     <div
       ref={ref}
       className={cn(
-        "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-gray-100 focus:bg-gray-100 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-        context.value === value && "bg-gray-100",
+        "relative flex cursor-pointer select-none items-center rounded-lg px-3 py-2 text-sm text-foreground outline-none hover:bg-panel-muted focus:bg-panel-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        context.value === value && "bg-panel-muted",
         className
       )}
       onClick={() => {
@@ -119,4 +119,3 @@ const SelectItem = React.forwardRef<
 SelectItem.displayName = "SelectItem";
 
 export { Select, SelectTrigger, SelectValue, SelectContent, SelectItem };
-

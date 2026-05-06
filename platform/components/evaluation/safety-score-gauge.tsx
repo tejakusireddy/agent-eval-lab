@@ -1,7 +1,5 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
-
 interface SafetyScoreGaugeProps {
   score: number;
   size?: "sm" | "md" | "lg";
@@ -20,9 +18,9 @@ export function SafetyScoreGauge({ score, size = "lg" }: SafetyScoreGaugeProps) 
   const offset = circumference - (score / 100) * circumference;
 
   const getColor = () => {
-    if (score >= 80) return "text-green-600";
-    if (score >= 60) return "text-yellow-600";
-    return "text-red-600";
+    if (score >= 80) return "text-success";
+    if (score >= 60) return "text-warning";
+    return "text-danger";
   };
 
   return (
@@ -36,7 +34,7 @@ export function SafetyScoreGauge({ score, size = "lg" }: SafetyScoreGaugeProps) 
             stroke="currentColor"
             strokeWidth={strokeWidth}
             fill="none"
-            className="text-gray-200"
+            className="text-border"
           />
           <circle
             cx="50%"
@@ -56,11 +54,10 @@ export function SafetyScoreGauge({ score, size = "lg" }: SafetyScoreGaugeProps) 
             <div className={`font-bold ${size === "lg" ? "text-4xl" : size === "md" ? "text-3xl" : "text-2xl"} ${getColor()}`}>
               {score.toFixed(0)}
             </div>
-            <div className={`text-gray-600 ${size === "lg" ? "text-sm" : "text-xs"}`}>%</div>
+            <div className={`text-foreground-subtle ${size === "lg" ? "text-sm" : "text-xs"}`}>%</div>
           </div>
         </div>
       </div>
     </div>
   );
 }
-
