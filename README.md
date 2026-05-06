@@ -87,7 +87,7 @@ This repository now ships a complete end-to-end MVP suitable for capstone demo a
    - Markdown, HTML, JSON artifacts
    - Hardened harmful-response detection with regression tests
 
-## Demo Flow (Professor-Friendly)
+## Demo Flow
 
 Use this exact sequence in class:
 
@@ -531,14 +531,11 @@ agent-eval-lab/
 │   ├── rag_service/         # RAG agent service (demo)
 │   ├── reporter/            # Report generators (Markdown, HTML, JSON)
 │   ├── runner/              # Scenario execution engine
-│   ├── storage/             # Local and S3-compatible artifact storage
-│   ├── trace/               # Trace data models
-│   ├── worker/              # Background worker bridge and tasks
+│   ├── policy/              # Release gate policy engine
 │   └── scenarios/           # Scenario base classes and loaders
 ├── platform/                # Next.js dashboard, API routes, and Prisma schema
 ├── scenario_definitions/    # YAML scenario files
 ├── policy/                  # Policy-as-code YAML definitions
-├── sdks/                    # Python and TypeScript client SDKs
 ├── examples/                # Example configurations
 ├── tests/                   # Test suite
 ├── reports/                 # Generated reports (gitignored)
