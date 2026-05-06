@@ -11,6 +11,11 @@ from rich.table import Table
 from agent_eval_lab.config.runner_config import RunnerConfig
 from agent_eval_lab.errors import ConfigError, ProviderError
 from agent_eval_lab.logging_config import configure_logging
+from agent_eval_lab.policy.gate import (
+    ReleaseGatePolicy,
+    evaluate_release_gate,
+    load_report_json,
+)
 from agent_eval_lab.scenarios.loader import ScenarioLoader
 
 
@@ -96,6 +101,9 @@ def run_all_scenarios(
                 http_agent_base_url=runner_config.http_agent.base_url
                 if runner_config.http_agent
                 else None,
+                http_agent_config=runner_config.http_agent.model_dump()
+                if runner_config.http_agent
+                else None,
                 logger=logger,
             )
         )
@@ -116,8 +124,13 @@ def run_all_scenarios(
                 if runner_config.http_agent
                 else "N/A"
             )
+            endpoint_path = (
+                runner_config.http_agent.endpoint_path
+                if runner_config.http_agent
+                else "/agent"
+            )
             console.print(
-                f"[green]Using HTTP agent adapter: {http_base_url}[/green]"
+                f"[green]Using HTTP agent adapter: {http_base_url}{endpoint_path}[/green]"
             )
         else:
             console.print(
@@ -201,3 +214,77 @@ def run_all_scenarios(
         console.print(
             f"\n[yellow]Minor failures detected: {failed_minor}[/yellow]"
         )
+
+
+def check_gate(
+    report_file: str = typer.Option(
+        "reports/evaluation_report.json",
+        help="Path to evaluation JSON report",
+    ),
+    policy_file: str = typer.Option(
+        "policy/release_gate.enterprise.yaml",
+        help="Path to release gate policy YAML",
+    ),
+) -> None:
+    """
+    Evaluate report JSON against policy-as-code release gate.
+
+    Exits with code 1 if any gate violations are found.
+    """
+    console = Console()
+
+    report_path = Path(report_file)
+    policy_path = Path(policy_file)
+
+    try:
+        report = load_report_json(report_path)
+        policy = ReleaseGatePolicy.from_file(policy_path)
+    except ConfigError as e:
+        console.print(f"[red]Gate configuration error: {e}[/red]")
+        raise typer.Exit(1) from e
+
+    evaluation = evaluate_release_gate(report, policy)
+    metrics = evaluation.metrics
+
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("Policy", evaluation.policy_name)
+    table.add_row("Total", str(metrics.get("total", 0)))
+    table.add_row("Passed", str(metrics.get("passed", 0)))
+    table.add_row("Failed Minor", str(metrics.get("failed_minor", 0)))
+    table.add_row("Failed Critical", str(metrics.get("failed_critical", 0)))
+    table.add_row("Safety Score", f"{metrics.get('safety_score', 0.0)}%")
+    table.add_row("Total Attempts", str(metrics.get("total_attempts", 0)))
+    table.add_row(
+        "Max Attempts / Scenario",
+        str(metrics.get("max_attempts_per_scenario", 0)),
+    )
+    table.add_row(
+        "Total Execution Time (ms)",
+        str(metrics.get("total_execution_time_ms", 0)),
+    )
+    table.add_row(
+        "Avg Execution Time (ms)",
+        str(metrics.get("average_execution_time_ms", 0.0)),
+    )
+    table.add_row("Timeout Failures", str(metrics.get("timeout_failures", 0)))
+    table.add_row(
+        "Provider Error Failures",
+        str(metrics.get("provider_error_failures", 0)),
+    )
+    console.print("\n[bold]Release Gate Metrics[/bold]")
+    console.print(table)
+
+    if evaluation.passed:
+        console.print(
+            f"\n[green]Release gate PASSED ({evaluation.policy_name})[/green]"
+        )
+        return
+
+    console.print(
+        f"\n[red]Release gate FAILED ({evaluation.policy_name})[/red]"
+    )
+    for violation in evaluation.violations:
+        console.print(f"[red]- {violation}[/red]")
+    raise typer.Exit(1)

@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.table import Table
 
 from agent_eval_lab.adapters.openai_adapter import OpenAIAdapter
+from agent_eval_lab.cli.commands import check_gate, run_all_scenarios
 from agent_eval_lab.config import load_app_config
 from agent_eval_lab.errors import ConfigError, ProviderError
 from agent_eval_lab.logging_config import configure_logging
@@ -16,7 +17,6 @@ from agent_eval_lab.reporter.markdown_reporter import generate_markdown_report
 from agent_eval_lab.runner.runner import ScenarioRunner
 from agent_eval_lab.scenarios.base import Scenario, ScenarioResult
 from agent_eval_lab.scenarios.safety.system_prompt_leak import SystemPromptLeakScenario
-from agent_eval_lab.cli.commands import run_all_scenarios
 
 app = typer.Typer(help="Agent evaluation framework for AI agents")
 console = Console()
@@ -86,7 +86,7 @@ def run_openai_basic() -> None:
     passed = sum(1 for r in results if r.success)
     failed = total - passed
     avg_score = sum(r.score for r in results) / total if total > 0 else 0.0
-    safety_score = avg_score * 100
+    safety_score = avg_score
 
     console.print("\n[bold]Evaluation Summary[/bold]")
     table = Table(show_header=True, header_style="bold magenta")
@@ -117,8 +117,8 @@ def run_openai_basic() -> None:
 
 # Register new command
 app.command(name="run-all-scenarios")(run_all_scenarios)
+app.command(name="check-gate")(check_gate)
 
 
 if __name__ == "__main__":
     app()
-

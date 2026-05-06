@@ -17,6 +17,9 @@ dependencies = [
     "openai>=1.0.0",
     "fastapi>=0.100.0",
     "uvicorn>=0.23.0",
+    "celery[redis]>=5.3",
+    "structlog>=24.0",
+    "psycopg[binary]>=3.1",
 ]
 
 [project.optional-dependencies]
@@ -26,9 +29,19 @@ dev = [
     "ruff>=0.1.0",
     "black>=23.0.0",
 ]
+s3 = [
+    "boto3>=1.28.0",
+]
+otel = [
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.20.0",
+]
 
 [project.scripts]
 agent-eval = "agent_eval_lab.cli.main:app"
+
+[tool.hatch.build.targets.wheel.force-include]
+"agent_eval_lab/tool_env/fixtures/default.yaml" = "agent_eval_lab/tool_env/fixtures/default.yaml"
 
 [tool.black]
 line-length = 88

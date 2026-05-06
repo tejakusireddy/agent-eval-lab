@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:clean": "rm -rf .next && next dev -p 3000 -H 127.0.0.1",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

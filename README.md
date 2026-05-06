@@ -109,6 +109,15 @@ Agent Evaluation Lab is a **red-team evaluator**. It can test external agents, b
 - **YAML-Based Scenarios**: Define test cases declaratively with pass/fail criteria
 - **Intelligent Scoring**: Distinguishes between positive behaviors (PASS) and negative violations (FAIL)
 - **Comprehensive Reporting**: Markdown, HTML, and JSON reports with detailed metrics
+- **Release Gate**: Policy-as-code GO/BLOCK decisions with audit evidence artifacts
+- **Threat Model Coverage**: Explicit coverage checks across enterprise threat categories (tool abuse, injection, exfiltration, autonomy, cost loops)
+- **Domain Policy Packs**: One-click vertical hardening profiles (healthcare, fintech, coding agent, customer support)
+- **Drift Monitoring**: Baseline-vs-current quality drift checks with signed audit alerts
+- **Adversarial Scenario Generation**: Generate targeted red-team scenario YAML by threat category
+- **Release Candidate Mode**: Server-enforced coverage checks before a release run can start
+- **Runtime Guardrails**: Bounded retries/concurrency/request timeout and whole-run timeout budgets
+- **Kill Switch**: Cancel queued/running evaluations from the platform
+- **Batch Candidate Bakeoffs**: Evaluate multiple agent candidates against one scenario set and compare leaderboard metrics
 - **CI/CD Ready**: GitHub Actions integration for automated testing on pull requests
 - **Production Grade**: Full type checking, error handling, retry logic, and concurrent execution
 - **Extensible**: Easy to add new adapters, scenarios, and evaluation criteria
@@ -125,8 +134,9 @@ cd agent-eval-lab
 # Install dependencies
 pip install -e ".[dev]"
 
-# Set your OpenAI API key
-export OPENAI_API_KEY="your-api-key-here"
+# Configure environment (one-time)
+cp .env.example .env
+# then edit .env and set OPENAI_API_KEY
 ```
 
 ### CLI Usage
@@ -142,6 +152,17 @@ agent-eval run-all-scenarios --config-file examples/rag_agent_config.yaml
 agent-eval run-all-scenarios --model gpt-4o --temperature 0.0
 ```
 
+### Policy Gate (Production Release Check)
+
+```bash
+# Enforce enterprise release policy against generated report
+agent-eval check-gate \
+  --report-file reports/evaluation_report.json \
+  --policy-file policy/release_gate.enterprise.yaml
+```
+
+`check-gate` exits with non-zero status when policy violations are found, so it can directly block CI/CD deploy pipelines.
+
 ### Full-Stack Demo (Agent + Platform)
 
 Run these in separate terminals:
@@ -149,7 +170,6 @@ Run these in separate terminals:
 ```bash
 # Terminal 1: Start target HTTP agent UI + API
 cd agent-eval-lab
-export OPENAI_API_KEY="your-api-key-here"
 python3.11 -m agent_eval_lab.rag_service.server
 ```
 
@@ -167,9 +187,55 @@ Open:
 1. `http://localhost:8000/` (target agent frontend)
 2. `http://localhost:3000/sandbox` (agent playground + evaluation runner)
 
+Note: the RAG server auto-loads env vars from `.env`, `platform/.env`, and `platform/.env.local`.
+
+### Local Mock Agents (Product QA)
+
+Run these additional agents to validate non-default integrations:
+
+```bash
+# Mock agent with non-default contract:
+# health=/healthz, endpoint=/v2/chat, prompt_field=message, response_path=data.output.text
+python3.11 -m agent_eval_lab.mock_agents.nonstandard_server
+```
+
+```bash
+# Mock agent with auth contract:
+# health=/status, endpoint=/api/secure/respond, auth header x-api-key (raw token)
+export MOCK_AGENT_API_KEY="dev-mock-agent-key"
+python3.11 -m agent_eval_lab.mock_agents.auth_server
+```
+
+Use these in `/sandbox` or `/dashboard/evaluations/new`:
+
+1. `http://127.0.0.1:8101` with path/mapping config for nonstandard contract
+2. `http://127.0.0.1:8102` with `x-api-key`, env var `MOCK_AGENT_API_KEY`, and auth scheme `raw`
+
+## Global SaaS Deployment (No Local Code Required for Users)
+
+To let external users evaluate their own agents from your deployed URL:
+
+1. Deploy `platform/` on Vercel.
+2. Deploy evaluator service (`agent_eval_lab.runner.service:app`) on a long-running host.
+3. Point platform to runner using:
+   - `EVAL_RUNNER_URL=https://runner.yourdomain.com/v1/evaluate`
+   - `EVAL_RUNNER_TOKEN=<shared-secret>`
+4. (Optional) enable anonymous trial mode:
+   - `PUBLIC_SELF_SERVE_MODE=true`
+   - `PUBLIC_SELF_SERVE_DAILY_LIMIT=3`
+   - `PUBLIC_SELF_SERVE_MAX_SCENARIOS=3`
+
+Run evaluator service:
+
+```bash
+uvicorn agent_eval_lab.runner.service:app --host 0.0.0.0 --port 8080
+```
+
+Then users can open `/bring-your-agent`, connect their endpoint, and run evaluations without cloning this repo.
+
 ## HTTP Agent Contract (For Any New Agent)
 
-To evaluate any custom agent through HTTP mode, your service must expose:
+Default contract (works out of the box):
 
 1. `GET /health` returning `200 OK`
 2. `POST /agent` accepting:
@@ -187,6 +253,14 @@ To evaluate any custom agent through HTTP mode, your service must expose:
   "answer": "agent response text"
 }
 ```
+
+Enterprise adapter mode also supports custom:
+
+1. Endpoint path (for example `/v2/chat`)
+2. HTTP method (`GET`, `POST`, `PUT`, `PATCH`)
+3. Prompt field name (for example `prompt`, `input`, `message`)
+4. Response extraction path (dot notation, for example `data.output.text`)
+5. Optional auth header using a server-side env var token
 
 Optional fields supported in UI:
 
@@ -406,7 +480,7 @@ tags:
 The framework includes a GitHub Actions workflow (`.github/workflows/eval.yml`) that:
 
 - Runs all scenarios on pull requests
-- Fails the build if any `FAIL_CRITICAL` results are found
+- Enforces policy-as-code release checks (score, coverage, forbidden failure signals, and operational guardrails like attempts/runtime/timeout caps)
 - Uploads reports as artifacts
 
 **Example Workflow**:
@@ -427,9 +501,10 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -e ".[dev]"
-      - run: agent-eval run-all-scenarios
+      - run: agent-eval run-all-scenarios || true
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - run: agent-eval check-gate --report-file reports/evaluation_report.json --policy-file policy/release_gate.enterprise.yaml
       - uses: actions/upload-artifact@v4
         with:
           name: evaluation-reports
@@ -448,8 +523,10 @@ agent-eval-lab/
 │   ├── rag_service/         # RAG agent service (demo)
 │   ├── reporter/            # Report generators (Markdown, HTML, JSON)
 │   ├── runner/              # Scenario execution engine
+│   ├── policy/              # Release gate policy engine
 │   └── scenarios/           # Scenario base classes and loaders
 ├── scenario_definitions/    # YAML scenario files
+├── policy/                  # Policy-as-code YAML definitions
 ├── examples/                # Example configurations
 ├── docs/                    # Documentation
 ├── tests/                   # Test suite
@@ -474,6 +551,16 @@ Options:
   --temperature FLOAT      Override temperature
   --max-tokens INT         Override max_tokens
   --max-concurrency INT    Override max_concurrency
+```
+
+### Check Release Gate
+
+```bash
+agent-eval check-gate [OPTIONS]
+
+Options:
+  --report-file TEXT      Path to evaluation JSON report [default: reports/evaluation_report.json]
+  --policy-file TEXT      Path to release gate policy YAML [default: policy/release_gate.enterprise.yaml]
 ```
 
 ### Example Commands
@@ -513,11 +600,11 @@ Capped at 100.0 to ensure it never exceeds 100%.
 
 ```bash
 cd platform
-rm -rf .next
-npm run dev
+npm run dev:clean
 ```
 
 Then do a browser hard reload (Empty Cache and Hard Reload).
+Also ensure only one Next dev server is active on `3000`.
 
 ### 2. HTTP agent ping fails (`/api/agent/ping` 500)
 

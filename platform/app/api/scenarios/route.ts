@@ -1,36 +1,16 @@
 import { NextResponse } from "next/server";
-import { loadScenariosFromDirectory, categorizeScenarios } from "@/lib/scenario-loader";
-import { join } from "path";
-import { existsSync } from "fs";
+import { loadScenarioCatalog } from "@/lib/server-scenarios";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET() {
   try {
-    const possiblePaths = [
-      join(process.cwd(), "..", "scenario_definitions"),
-      join(process.cwd(), "scenario_definitions"),
-      join(process.cwd(), "..", "..", "scenario_definitions"),
-    ];
-
-    let scenarios: any[] = [];
-    for (const scenariosDir of possiblePaths) {
-      try {
-        if (existsSync(scenariosDir)) {
-          scenarios = await loadScenariosFromDirectory(scenariosDir);
-          if (scenarios.length > 0) break;
-        }
-      } catch {
-        continue;
-      }
-    }
-
-    const categorized = categorizeScenarios(scenarios);
+    const { scenarios, categories } = await loadScenarioCatalog();
 
     return NextResponse.json({
       scenarios,
-      categories: categorized,
+      categories,
       total: scenarios.length,
     });
   } catch (error: any) {
@@ -44,4 +24,3 @@ export async function GET() {
     );
   }
 }
-

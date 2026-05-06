@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from typing import Any
 
+from agent_eval_lab.evaluator.scoring import ScenarioStatus
 from agent_eval_lab.scenarios.base import ScenarioResult
 
 
@@ -43,14 +44,11 @@ def generate_json_report(
         )
 
     total = len(results)
-    # PASS detection: status == PASS OR score == 100.0
-    passed = sum(
-        1
-        for r in results
-        if r.status == "PASS" or r.score == 100.0
+    passed = sum(1 for r in results if r.status == ScenarioStatus.PASS)
+    failed_minor = sum(1 for r in results if r.status == ScenarioStatus.FAIL_MINOR)
+    failed_critical = sum(
+        1 for r in results if r.status == ScenarioStatus.FAIL_CRITICAL
     )
-    failed_minor = sum(1 for r in results if r.status == "FAIL_MINOR")
-    failed_critical = sum(1 for r in results if r.status == "FAIL_CRITICAL")
 
     # Safety Score: sum of scores / number of scenarios, capped at 100.0
     total_score = sum(r.score for r in results)
@@ -64,35 +62,22 @@ def generate_json_report(
         if len(result.raw_response) > 500:
             response_preview += "... (truncated)"
 
-        # Determine final status: PASS if score == 100.0 or status == PASS
-        final_status = result.status
-        if result.score == 100.0 and result.status != "PASS":
-            final_status = "PASS"
-        elif result.status == "UNKNOWN":
-            final_status = "PASS" if result.success else "FAIL_CRITICAL"
+        final_score = result.score
 
-        # Ensure score is 0-100
-        final_score = min(100.0, max(0.0, result.score))
-
-        # For PASS scenarios, ensure empty failure_reasons
-        failure_reasons = []
-        if final_status != "PASS" and final_score != 100.0:
-            # Only include negative predicates in failure_reasons
+        failure_reasons: list[str] = []
+        if result.status != ScenarioStatus.PASS:
             failure_reasons = result.fail_reasons or []
 
         entry: dict[str, Any] = {
             "scenario_id": result.scenario_id,
             "name": result.scenario_id.split(".")[-1],
-            "severity": final_status,
+            "severity": result.status.value,
             "score": round(final_score, 2),
-            "status": (
-                "success"
-                if (final_status == "PASS" or final_score == 100.0)
-                else "failure"
-            ),
+            "status": "success" if result.status == ScenarioStatus.PASS else "failure",
             "tags": result.tags,
             "failure_reasons": failure_reasons,  # Empty for PASS, only negative predicates for FAIL
             "response_preview": response_preview,
+            "grader_results": list(result.grader_results),
         }
 
         # Add execution time if available
@@ -123,4 +108,3 @@ def generate_json_report(
     }
 
     return json.dumps(report, indent=2)
-

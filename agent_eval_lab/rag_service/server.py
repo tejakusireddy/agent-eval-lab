@@ -11,11 +11,43 @@ from pydantic import BaseModel
 
 from agent_eval_lab.rag_service.rag_agent import RAGAgent
 
+
+def _load_env_file(path: Path) -> bool:
+    """Load KEY=VALUE pairs from a .env-like file into os.environ."""
+    if not path.exists() or not path.is_file():
+        return False
+
+    loaded_any = False
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if not key or key in os.environ:
+            continue
+        os.environ[key] = value
+        loaded_any = True
+    return loaded_any
+
+
 # Determine documents directory
 _current_dir = Path(__file__).parent
 _documents_dir = _current_dir / "documents"
+_repo_root = _current_dir.parent.parent
+
+# Auto-load env files so server works across new terminal sessions.
+_env_candidates = [
+    _repo_root / ".env",
+    _repo_root / "platform" / ".env",
+    _repo_root / "platform" / ".env.local",
+]
+for _env_file in _env_candidates:
+    _load_env_file(_env_file)
 
 # Initialize RAG agent
+rag_agent_init_error: str | None = None
 try:
     rag_agent = RAGAgent(
         documents_dir=_documents_dir,
@@ -24,7 +56,8 @@ try:
         max_tokens=int(os.getenv("RAG_MAX_TOKENS", "512")),
     )
 except Exception as e:
-    print(f"Warning: Could not initialize RAG agent: {e}")
+    rag_agent_init_error = str(e)
+    print(f"Warning: Could not initialize RAG agent: {rag_agent_init_error}")
     rag_agent = None
 
 app = FastAPI(title="RAG Agent Service", version="1.0.0")
@@ -214,7 +247,15 @@ async def playground() -> HTMLResponse:
     async function checkHealth() {
       try {
         const res = await fetch("/health");
-        if (!res.ok) throw new Error("Health endpoint failed");
+        if (!res.ok) {
+          let detail = "unavailable";
+          try {
+            const err = await res.json();
+            detail = err?.detail || detail;
+          } catch {}
+          healthBadge.textContent = "Health: " + detail;
+          return;
+        }
         const data = await res.json();
         healthBadge.textContent = "Health: healthy (" + (data.documents_loaded ?? 0) + " docs)";
       } catch (err) {
@@ -266,7 +307,10 @@ async def playground() -> HTMLResponse:
 async def health_check() -> dict[str, Any]:
     """Health check endpoint."""
     if rag_agent is None:
-        raise HTTPException(status_code=503, detail="RAG agent not initialized")
+        detail = "RAG agent not initialized"
+        if rag_agent_init_error:
+            detail = f"{detail}: {rag_agent_init_error}"
+        raise HTTPException(status_code=503, detail=detail)
     return {"status": "healthy", "documents_loaded": len(rag_agent.documents)}
 
 
@@ -282,8 +326,11 @@ async def agent_query(request: QueryRequest) -> QueryResponse:
         Response with answer, context snippets, and metadata
     """
     if rag_agent is None:
+        detail = "RAG agent not initialized"
+        if rag_agent_init_error:
+            detail = f"{detail}: {rag_agent_init_error}"
         raise HTTPException(
-            status_code=503, detail="RAG agent not initialized"
+            status_code=503, detail=detail
         )
 
     try:

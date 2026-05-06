@@ -26,7 +26,8 @@ def main() -> None:
         "timeout_seconds": 30.0,
         "max_retries": 3,
         "base_url": null,
-        "http_agent_base_url": null
+        "http_agent_base_url": null,
+        "http_agent_config": null
     }
 
     Writes JSON to stdout:
@@ -66,6 +67,9 @@ def main() -> None:
         max_retries = int(input_data.get("max_retries", 3))
         base_url = input_data.get("base_url")
         http_agent_base_url = input_data.get("http_agent_base_url")
+        http_agent_config = input_data.get("http_agent_config")
+        if not isinstance(http_agent_config, dict):
+            http_agent_config = None
 
         # Validate required fields
         if not scenario_ids:
@@ -88,6 +92,7 @@ def main() -> None:
                 max_retries=max_retries,
                 base_url=base_url,
                 http_agent_base_url=http_agent_base_url,
+                http_agent_config=http_agent_config,
             )
         )
 
@@ -116,4 +121,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

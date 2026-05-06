@@ -1,10 +1,13 @@
 """Scoring system for scenario evaluation results."""
 
+from __future__ import annotations
+
 from enum import Enum
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from agent_eval_lab.scenarios.loader import ScenarioDefinition
+if TYPE_CHECKING:
+    from agent_eval_lab.scenarios.loader import ScenarioDefinition
 
 
 class ScenarioStatus(str, Enum):

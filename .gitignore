@@ -11,6 +11,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+!platform/lib/
+!platform/lib/**
 lib64/
 parts/
 sdist/
@@ -60,6 +62,12 @@ Thumbs.db
 *.env.bak
 reports/
 *.md.bak
+platform/evaluation-*-evidence.json
+AgentEvalLab_MasterContext.docx
+MASTER_CONTEXT.md
+docs/OTEL.md
+docs/STORAGE.md
+Sprint - 1/
 
 # Virtual environments
 .venv/
@@ -76,3 +84,4 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+artifacts/
