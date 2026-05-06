@@ -3,13 +3,15 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { AppLayout } from "@/components/layout/app-layout";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/evaluation/status-badge";
-import { Plus, Clock, Calendar, CheckCircle2 } from "lucide-react";
-import { EvaluationListSkeleton } from "@/components/evaluation/evaluation-list-skeleton";
-import { Suspense } from "react";
+import { GateBadge } from "@/components/evaluation/gate-badge";
+import { Plus, Clock, Calendar, CheckCircle2, Code, Settings } from "lucide-react";
 import { normalizeReportJson } from "@/app/_utils/report-json";
+import { evaluateGateForEvaluation } from "@/lib/evaluation-gate";
+import { EmptyState, MetricCard, PageHeader, ReportPanel, SectionHeader } from "@/components/ui/surface";
+import { formatDateTime, formatInteger, formatScore } from "@/lib/formatting";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -75,89 +77,99 @@ export default async function DashboardPage() {
     return sum;
   }, 0);
 
+  const gateEntries = await Promise.all(
+    recentEvaluations.map(async (evaluation) => {
+      const result = await evaluateGateForEvaluation({
+        id: evaluation.id,
+        projectId: evaluation.projectId,
+        status: evaluation.status,
+        createdAt: evaluation.createdAt,
+        reportJson: evaluation.reportJson,
+        config: evaluation.config,
+        scenarios: evaluation.scenarios,
+      });
+      return [evaluation.id, result.gate] as const;
+    })
+  );
+  const gateByEvaluationId = new Map(gateEntries);
+
   return (
-    <AppLayout>
+    <AppLayout initialEvaluationCountZero={allEvaluations.length === 0}>
       <div className="space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
-              Dashboard
-            </h1>
-            <p className="mt-2 text-sm text-gray-500">
-              Monitor and manage your evaluation projects
-            </p>
-          </div>
-          <Link href="/dashboard/evaluations/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Evaluation
-            </Button>
-          </Link>
-        </div>
+        <PageHeader
+          eyebrow="Workspace"
+          title="Dashboard"
+          description="Monitor evaluation health, release posture, and recent activity across your projects."
+          actions={
+            <Link href="/dashboard/evaluations/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                New evaluation
+              </Button>
+            </Link>
+          }
+        />
 
         <div className="grid gap-6 md:grid-cols-3">
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-sm font-medium text-gray-500">Safety Score</div>
-              <div className="mt-2 text-3xl font-semibold text-gray-900">
-                {avgSafetyScore.toFixed(1)}%
-              </div>
-              <div className="mt-1 text-xs text-gray-400">
-                Last 7 days
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-sm font-medium text-gray-500">Critical Failures</div>
-              <div className="mt-2 text-3xl font-semibold text-red-600">
-                {totalCriticalFailures}
-              </div>
-              <div className="mt-1 text-xs text-gray-400">
-                Across all evaluations
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-sm font-medium text-gray-500">Total Evaluations</div>
-              <div className="mt-2 text-3xl font-semibold text-gray-900">
-                {allEvaluations.length}
-              </div>
-              <div className="mt-1 text-xs text-gray-400">
-                {projects.length} project{projects.length !== 1 ? "s" : ""}
-              </div>
-            </CardContent>
-          </Card>
+          <MetricCard
+            label="Average safety score"
+            value={formatScore(avgSafetyScore)}
+            detail="Across completed runs in the last seven days"
+          />
+          <MetricCard
+            label="Critical failures"
+            value={formatInteger(totalCriticalFailures)}
+            detail="Across the current evaluation history"
+            tone="danger"
+          />
+          <MetricCard
+            label="Total evaluations"
+            value={formatInteger(allEvaluations.length)}
+            detail={`${projects.length} project${projects.length !== 1 ? "s" : ""}`}
+          />
         </div>
 
         {recentEvaluations.length === 0 ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <div className="text-lg font-semibold text-gray-900">
-                No evaluations yet
-              </div>
-              <p className="mt-2 text-sm text-gray-500">
-                Get started by creating your first evaluation
-              </p>
-              <Link href="/dashboard/evaluations/new" className="mt-6 inline-block">
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Evaluation
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+          <div className="grid gap-6 md:grid-cols-2">
+            <EmptyState
+              title="Connect an agent and run your first evaluation"
+              description="Start with the guided HTTP onboarding flow if you want the fastest path from endpoint to first result."
+              action={
+                <Link href="/dashboard/onboarding">
+                  <Button>
+                    <Code className="mr-2 h-4 w-4" />
+                    Start onboarding
+                  </Button>
+                </Link>
+              }
+            />
+            <EmptyState
+              title="Need full control?"
+              description="Launch the full evaluation wizard for manual scenario selection, policy setup, and advanced configuration."
+              action={
+                <Link href="/dashboard/evaluations/new">
+                  <Button variant="outline">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Open evaluation wizard
+                  </Button>
+                </Link>
+              }
+            />
+          </div>
         ) : (
-          <Card className="shadow-sm">
+          <ReportPanel
+            title="Recent evaluations"
+            description="Latest evaluation activity across your projects."
+          >
+            <Card variant="ghost" className="shadow-none">
             <CardContent className="p-0">
               <div className="divide-y divide-gray-100">
-                {recentEvaluations.map((evaluation) => (
+                {recentEvaluations.map((evaluation) => {
+                  const gateDecision = gateByEvaluationId.get(evaluation.id);
+                  return (
                   <div
                     key={evaluation.id}
-                    className="group p-6 transition-colors hover:bg-gray-50"
+                    className="group rounded-2xl p-5 transition-colors hover:bg-panel-muted/50"
                   >
                     <div className="flex items-center justify-between">
                       <Link
@@ -166,26 +178,27 @@ export default async function DashboardPage() {
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-3">
-                            <div className="font-medium text-gray-900">
+                            <div className="font-medium text-foreground">
                               {evaluation.name || "Untitled Evaluation"}
                             </div>
                             <StatusBadge status={evaluation.status as any} />
+                            <GateBadge status={gateDecision?.status || "unavailable"} />
                           </div>
-                          <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+                          <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-foreground-muted">
                             <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              Created: {new Date(evaluation.createdAt).toLocaleString()}
+                              <Calendar className="h-3.5 w-3.5" />
+                              {formatDateTime(evaluation.createdAt)}
                             </div>
                             {evaluation.completedAt && (
                               <div className="flex items-center gap-1">
-                                <CheckCircle2 className="h-3 w-3" />
-                                Completed: {new Date(evaluation.completedAt).toLocaleString()}
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Completed {formatDateTime(evaluation.completedAt)}
                               </div>
                             )}
                             {evaluation.status === "running" && (
-                              <div className="flex items-center gap-1 text-blue-600">
-                                <Clock className="h-3 w-3" />
-                                Running...
+                              <div className="flex items-center gap-1 text-accent">
+                                <Clock className="h-3.5 w-3.5" />
+                                In progress
                               </div>
                             )}
                           </div>
@@ -194,24 +207,28 @@ export default async function DashboardPage() {
                       <div className="flex items-center gap-4">
                         {evaluation.safetyScore !== null && (
                           <div className="text-right">
-                            <div className="text-xs font-medium text-gray-500">Safety Score</div>
-                            <div className="mt-0.5 text-lg font-semibold text-gray-900">
-                              {evaluation.safetyScore.toFixed(1)}%
+                            <div className="text-xs font-medium uppercase tracking-[0.08em] text-foreground-subtle">
+                              Safety score
+                            </div>
+                            <div className="mt-1 text-xl font-semibold text-foreground">
+                              {formatScore(evaluation.safetyScore)}
                             </div>
                           </div>
                         )}
                         <Link href={`/dashboard/evaluations/${evaluation.id}`}>
                           <Button variant="outline" size="sm">
-                            View
+                            View run
                           </Button>
                         </Link>
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
+          </ReportPanel>
         )}
       </div>
     </AppLayout>

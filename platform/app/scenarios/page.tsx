@@ -1,7 +1,6 @@
 import { AppLayout } from "@/components/layout/app-layout";
-import { loadScenariosFromDirectory, categorizeScenarios, getScenarioSeverity } from "@/lib/scenario-loader";
-import { join } from "path";
-import { existsSync } from "fs";
+import { getScenarioSeverity } from "@/lib/scenario-loader";
+import { loadScenarioCatalog } from "@/lib/server-scenarios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -9,29 +8,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function ScenariosPage() {
-  const possiblePaths = [
-    join(process.cwd(), "..", "scenario_definitions"),
-    join(process.cwd(), "scenario_definitions"),
-    join(process.cwd(), "..", "..", "scenario_definitions"),
-  ];
-
-  let scenarios: any[] = [];
-
-  for (const scenariosDir of possiblePaths) {
-    try {
-      if (existsSync(scenariosDir)) {
-        const loaded = await loadScenariosFromDirectory(scenariosDir);
-        if (loaded.length > 0) {
-          scenarios = loaded;
-          break;
-        }
-      }
-    } catch (error) {
-      continue;
-    }
-  }
-
-  const categories = categorizeScenarios(scenarios);
+  const { scenarios, categories } = await loadScenarioCatalog();
 
   return (
     <AppLayout>

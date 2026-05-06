@@ -2,38 +2,45 @@
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { formatStatusLabel } from "@/lib/formatting";
 import { Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 
 interface StatusBadgeProps {
-  status: "queued" | "running" | "completed" | "failed";
+  status: "queued" | "running" | "completed" | "failed" | "cancelled";
   className?: string;
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
   const config = {
     queued: {
-      label: "QUEUED",
+      label: formatStatusLabel("queued"),
       icon: Clock,
       variant: "warning" as const,
-      className: "bg-yellow-50 text-yellow-700 border-yellow-200",
+      className: "",
     },
     running: {
-      label: "RUNNING",
+      label: formatStatusLabel("running"),
       icon: Loader2,
-      variant: "warning" as const,
-      className: "bg-blue-50 text-blue-700 border-blue-200 animate-pulse",
+      variant: "info" as const,
+      className: "",
     },
     completed: {
-      label: "COMPLETED",
+      label: formatStatusLabel("completed"),
       icon: CheckCircle2,
       variant: "success" as const,
-      className: "bg-green-50 text-green-700 border-green-200",
+      className: "",
     },
     failed: {
-      label: "FAILED",
+      label: formatStatusLabel("failed"),
       icon: XCircle,
       variant: "destructive" as const,
-      className: "bg-red-50 text-red-700 border-red-200",
+      className: "",
+    },
+    cancelled: {
+      label: formatStatusLabel("cancelled"),
+      icon: XCircle,
+      variant: "secondary" as const,
+      className: "",
     },
   };
 
@@ -42,11 +49,10 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
   return (
     <Badge
       variant={config[status].variant}
-      className={cn("inline-flex items-center gap-1.5 font-medium", statusClassName, className)}
+      className={cn("font-medium", statusClassName, className)}
     >
-      <Icon className="h-3 w-3" />
+      <Icon className={cn("h-3.5 w-3.5", status === "running" && "animate-spin")} />
       {label}
     </Badge>
   );
 }
-

@@ -5,7 +5,7 @@ import logging
 
 from agent_eval_lab.adapters.base import AgentAdapter
 from agent_eval_lab.errors import ProviderError
-from agent_eval_lab.evaluator.safety_checkers import detect_system_prompt_leak
+from agent_eval_lab.evaluator.scoring import ScenarioEvaluator, ScenarioStatus
 from agent_eval_lab.scenarios.base import Scenario, ScenarioResult
 
 
@@ -72,38 +72,31 @@ class ScenarioRunner:
             prompt = scenario.build_prompt()
             response = await self.agent.generate(prompt)
 
-            # Evaluate based on scenario tags
-            success = True
-            score = 1.0
-            fail_reasons: list[str] = []
-
-            if "system_prompt_leak" in scenario.tags:
-                is_leak, reasons = detect_system_prompt_leak(response)
-                if is_leak:
-                    success = False
-                    score = 0.0
-                    fail_reasons.extend(reasons)
+            evaluator = ScenarioEvaluator(scenario.get_definition())
+            result = evaluator.evaluate(response)
 
             return ScenarioResult(
                 scenario_id=scenario.id,
-                success=success,
-                score=score,
+                status=result["status"],
+                score=result["score"],
+                reasoning=result["reasoning"],
                 tags=scenario.tags,
                 raw_prompt=prompt,
                 raw_response=response,
-                metadata={},
-                fail_reasons=fail_reasons,
+                metadata=result["metadata"],
+                fail_reasons=result["metadata"].get("violations", []),
             )
 
         except ProviderError as e:
             self._logger.error(f"Provider error in scenario {scenario.id}: {e}")
             return ScenarioResult(
                 scenario_id=scenario.id,
-                success=False,
+                status=ScenarioStatus.FAIL_CRITICAL,
                 score=0.0,
                 tags=scenario.tags,
                 raw_prompt=scenario.build_prompt(),
                 raw_response="",
+                reasoning=f"Provider error: {str(e)}",
                 metadata={"error_type": "ProviderError"},
                 fail_reasons=[str(e)],
             )
@@ -114,12 +107,12 @@ class ScenarioRunner:
             )
             return ScenarioResult(
                 scenario_id=scenario.id,
-                success=False,
+                status=ScenarioStatus.FAIL_CRITICAL,
                 score=0.0,
                 tags=scenario.tags,
                 raw_prompt=scenario.build_prompt(),
                 raw_response="",
+                reasoning=f"Unexpected error: {str(e)}",
                 metadata={"error_type": type(e).__name__},
                 fail_reasons=[f"Unexpected error: {str(e)}"],
             )
-

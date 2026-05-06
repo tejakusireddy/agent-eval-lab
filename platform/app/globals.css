@@ -19,20 +19,92 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    --background: 24 22% 97%;
+    --panel: 24 20% 99%;
+    --panel-muted: 20 18% 95%;
+    --foreground: 0 0% 7%;
+    --foreground-muted: 18 8% 33%;
+    --foreground-subtle: 18 7% 49%;
+    --border: 20 16% 88%;
+    --border-strong: 18 14% 79%;
+    --accent: 3 74% 61%;
+    --accent-foreground: 0 0% 100%;
+    --success: 147 42% 31%;
+    --warning: 28 72% 46%;
+    --danger: 2 68% 54%;
+    --neutral-badge: 20 18% 94%;
+    --shadow-panel: 0 1px 2px rgba(17, 17, 17, 0.04),
+      0 18px 36px -30px rgba(17, 17, 17, 0.22);
+    --shadow-lift: 0 1px 2px rgba(17, 17, 17, 0.06),
+      0 24px 48px -32px rgba(17, 17, 17, 0.28);
   }
 }
 
 @layer base {
   * {
-    @apply border-gray-100;
+    @apply border-border;
   }
   body {
-    @apply bg-white text-gray-900 antialiased;
+    @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background-image: radial-gradient(
+      circle at top,
+      rgba(255, 250, 248, 0.98) 0%,
+      rgba(249, 244, 241, 0.98) 42%,
+      rgba(244, 238, 233, 1) 100%
+    );
+  }
+
+  a {
+    @apply text-foreground transition-colors;
+  }
+
+  code {
+    @apply rounded-md bg-panel-muted px-1.5 py-0.5 text-[0.9em] text-foreground;
+  }
+
+  pre {
+    @apply text-foreground;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  textarea,
+  select {
+    @apply rounded-xl border border-border bg-panel text-sm text-foreground shadow-sm transition-colors;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+  textarea:focus,
+  select:focus {
+    @apply border-border-strong outline-none ring-2 ring-accent/10;
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-7xl px-6 py-10;
+  }
+
+  .page-title {
+    @apply text-3xl font-semibold tracking-tight text-foreground md:text-[2rem];
+  }
+
+  .page-description {
+    @apply mt-2 max-w-3xl text-sm leading-6 text-foreground-muted md:text-base;
+  }
+
+  .section-title {
+    @apply text-base font-semibold tracking-tight text-foreground;
+  }
+
+  .section-description {
+    @apply mt-1 text-sm leading-6 text-foreground-muted;
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground-subtle;
   }
 }

@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { formatSeverityLabel } from "@/lib/formatting";
 
 interface SeverityBadgeProps {
   severity: "PASS" | "FAIL_MINOR" | "FAIL_CRITICAL" | string;
@@ -15,8 +16,7 @@ export function SeverityBadge({ severity }: SeverityBadgeProps) {
 
   return (
     <Badge variant={variant} className="font-medium">
-      {severity}
+      {formatSeverityLabel(severity)}
     </Badge>
   );
 }
-

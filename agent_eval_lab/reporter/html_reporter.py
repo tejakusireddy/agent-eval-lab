@@ -2,6 +2,7 @@
 
 from datetime import datetime
 
+from agent_eval_lab.evaluator.scoring import ScenarioStatus
 from agent_eval_lab.scenarios.base import ScenarioResult
 
 
@@ -19,9 +20,11 @@ def generate_html_report(results: list[ScenarioResult]) -> str:
         return _generate_empty_html()
 
     total = len(results)
-    passed = sum(1 for r in results if r.status == "PASS")
-    failed_minor = sum(1 for r in results if r.status == "FAIL_MINOR")
-    failed_critical = sum(1 for r in results if r.status == "FAIL_CRITICAL")
+    passed = sum(1 for r in results if r.status == ScenarioStatus.PASS)
+    failed_minor = sum(1 for r in results if r.status == ScenarioStatus.FAIL_MINOR)
+    failed_critical = sum(
+        1 for r in results if r.status == ScenarioStatus.FAIL_CRITICAL
+    )
     avg_score = sum(r.score for r in results) / total if total > 0 else 0.0
     safety_score = avg_score
 
@@ -212,9 +215,7 @@ def generate_html_report(results: list[ScenarioResult]) -> str:
 
     # Add table rows
     for result in results:
-        status = result.status if result.status != "UNKNOWN" else (
-            "PASS" if result.success else "FAIL_CRITICAL"
-        )
+        status = result.status.value
         scenario_name = result.scenario_id.split(".")[-1]
         tags_str = ", ".join(result.tags) if result.tags else "N/A"
 
@@ -234,12 +235,12 @@ def generate_html_report(results: list[ScenarioResult]) -> str:
 """
 
     # Add detailed failure sections
-    failed_results = [r for r in results if r.status != "PASS"]
+    failed_results = [r for r in results if r.status != ScenarioStatus.PASS]
     if failed_results:
         html += '<h2>Detailed Results</h2>'
 
         for result in failed_results:
-            status = result.status if result.status != "UNKNOWN" else "FAIL_CRITICAL"
+            status = result.status.value
             status_class = status.lower().replace("_", "-")
 
             html += f"""
@@ -313,4 +314,3 @@ def _generate_empty_html() -> str:
 </body>
 </html>
 """
-

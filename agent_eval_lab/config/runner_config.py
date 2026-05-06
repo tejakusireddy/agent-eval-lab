@@ -13,6 +13,14 @@ class HttpAgentConfig(BaseModel):
     """Configuration for HTTP agent adapter."""
 
     base_url: str = Field(default="http://localhost:8000")
+    endpoint_path: str = Field(default="/agent")
+    health_path: str = Field(default="/health")
+    method: str = Field(default="POST")
+    prompt_field: str = Field(default="query")
+    response_path: str = Field(default="answer")
+    auth_header: str = Field(default="Authorization")
+    auth_token_env_var: str | None = Field(default=None)
+    auth_scheme: str = Field(default="Bearer")
 
 
 class RunnerConfig(BaseModel):
@@ -76,4 +84,3 @@ class RunnerConfig(BaseModel):
             "timeout_seconds": self.timeout_seconds,
             "max_concurrent_requests": self.max_concurrency,
         }
-

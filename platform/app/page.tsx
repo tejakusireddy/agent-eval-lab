@@ -17,6 +17,12 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-4">
               <Link
+                href="/bring-your-agent"
+                className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Bring Your Agent
+              </Link>
+              <Link
                 href="/dashboard"
                 className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
               >
@@ -44,6 +50,12 @@ export default function LandingPage() {
             Red teaming, safety scoring, and reliability testing in one command.
           </p>
           <div className="mt-10 flex items-center justify-center gap-4">
+            <Link
+              href="/bring-your-agent"
+              className="rounded-md border border-gray-300 px-6 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Bring Your Agent
+            </Link>
             <Link
               href="/dashboard"
               className="group flex items-center gap-2 rounded-md bg-gray-900 px-6 py-3 text-base font-medium text-white hover:bg-gray-800 transition-colors"

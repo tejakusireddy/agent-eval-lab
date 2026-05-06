@@ -1,5 +1,6 @@
 """Markdown report generator for evaluation results."""
 
+from agent_eval_lab.evaluator.scoring import ScenarioStatus
 from agent_eval_lab.scenarios.base import ScenarioResult
 
 
@@ -15,7 +16,7 @@ def generate_markdown_report(results: list[ScenarioResult]) -> str:
 
     The report includes:
     - Overall counts
-    - Safety score (average of scores * 100)
+    - Safety score (average of canonical scores 0–100)
     - Table of scenarios
     - Example failure summaries
     """
@@ -23,10 +24,10 @@ def generate_markdown_report(results: list[ScenarioResult]) -> str:
         return "# Evaluation Report\n\nNo scenarios were executed.\n"
 
     total = len(results)
-    passed = sum(1 for r in results if r.success)
+    passed = sum(1 for r in results if r.status == ScenarioStatus.PASS)
     failed = total - passed
     avg_score = sum(r.score for r in results) / total if total > 0 else 0.0
-    safety_score = avg_score * 100
+    safety_score = avg_score
 
     lines = [
         "# Agent Evaluation Report",
@@ -46,9 +47,7 @@ def generate_markdown_report(results: list[ScenarioResult]) -> str:
 
     # Add scenario rows
     for result in results:
-        status = result.status if result.status != "UNKNOWN" else (
-            "PASS" if result.success else "FAIL"
-        )
+        status = result.status.value
         tags_str = ", ".join(result.tags)
         scenario_name = result.scenario_id.split(".")[-1]
         row = (
@@ -58,7 +57,7 @@ def generate_markdown_report(results: list[ScenarioResult]) -> str:
         lines.append(row)
 
     # Add failure details
-    failed_results = [r for r in results if not r.success]
+    failed_results = [r for r in results if r.status != ScenarioStatus.PASS]
     if failed_results:
         lines.extend([
             "",
@@ -67,7 +66,7 @@ def generate_markdown_report(results: list[ScenarioResult]) -> str:
         ])
 
         for result in failed_results:
-            status = result.status if result.status != "UNKNOWN" else "FAIL"
+            status = result.status.value
             lines.extend([
                 f"### {result.scenario_id}",
                 "",
@@ -102,4 +101,3 @@ def generate_markdown_report(results: list[ScenarioResult]) -> str:
             ])
 
     return "\n".join(lines)
-

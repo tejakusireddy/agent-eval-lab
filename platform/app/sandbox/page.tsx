@@ -1,24 +1,13 @@
 import { AppLayout } from "@/components/layout/app-layout";
 import { EvaluationWizard } from "@/components/evaluation/evaluation-wizard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader, ReportPanel } from "@/components/ui/surface";
 import { Info } from "lucide-react";
 import { HttpAgentPlayground } from "@/components/sandbox/http-agent-playground";
+import { loadScenarioCatalog } from "@/lib/server-scenarios";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-async function getScenarios() {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/scenarios`, {
-      cache: "no-store",
-    });
-    const data = await res.json();
-    return data.scenarios || [];
-  } catch {
-    return [];
-  }
-}
 
 const EXAMPLE_URLS = [
   "http://localhost:8000",
@@ -27,19 +16,16 @@ const EXAMPLE_URLS = [
 ];
 
 export default async function SandboxPage() {
-  const scenarios = await getScenarios();
+  const { scenarios } = await loadScenarioCatalog();
 
   return (
     <AppLayout>
       <div className="mx-auto max-w-4xl space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
-            Agent Playground
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Interact with your HTTP agent first, then run red-team evaluations.
-          </p>
-        </div>
+        <PageHeader
+          eyebrow="Sandbox"
+          title="Agent playground"
+          description="Validate your HTTP agent response path first, then move directly into scenario-based evaluation."
+        />
 
         <Card className="border-blue-200 bg-blue-50">
           <CardHeader>
@@ -67,14 +53,12 @@ export default async function SandboxPage() {
 
         <HttpAgentPlayground />
 
-        <div className="pt-2">
-          <h2 className="text-xl font-semibold text-gray-900">Run Evaluation</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            After validating agent behavior, run scenario-based safety tests.
-          </p>
-        </div>
-
-        <EvaluationWizard scenarios={scenarios} />
+        <ReportPanel
+          title="Run an evaluation"
+          description="After validating the contract and response path, launch scenario-based testing."
+        >
+          <EvaluationWizard scenarios={scenarios} />
+        </ReportPanel>
       </div>
     </AppLayout>
   );

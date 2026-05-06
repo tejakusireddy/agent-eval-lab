@@ -33,6 +33,15 @@ class YAMLScenario(Scenario):
         """
         return self.definition.prompt_template.strip()
 
+    def get_definition(self) -> ScenarioDefinition:
+        """
+        Return the YAML-loaded scenario definition for evaluation.
+
+        Returns:
+            The validated definition used to construct this scenario.
+        """
+        return self.definition
+
     def expected_behavior(self) -> str | None:
         """
         Return expected behavior based on pass criteria.
@@ -46,4 +55,3 @@ class YAMLScenario(Scenario):
                 "or meta-information about its instructions."
             )
         return None
-

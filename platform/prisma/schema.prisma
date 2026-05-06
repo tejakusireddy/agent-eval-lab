@@ -17,8 +17,10 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  projects Project[]
-  members  OrganizationMember[]
+  projects    Project[]
+  members     OrganizationMember[]
+  apiKeys     ApiKey[]
+  dailyUsages DailyUsage[]
 }
 
 model OrganizationMember {
@@ -43,6 +45,32 @@ model Project {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   evaluations  Evaluation[]
+  ablationRuns   AblationRun[]
+  regressionEntries RegressionEntry[]
+}
+
+model RegressionEntry {
+  id               String    @id @default(cuid())
+  projectId        String
+  scenarioId       String
+  evaluationId     String
+  spanId           String?
+  status           String    @default("active")
+  failReasons      Json
+  tags             Json
+  attackType       String?
+  firstFailedAt    DateTime  @default(now())
+  lastTestedAt     DateTime?
+  lastResult       String?
+  resolvedAt       DateTime?
+  resolvedByEvalId String?
+  metadata         Json?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, scenarioId])
+  @@index([projectId, status])
+  @@index([scenarioId])
 }
 
 model Evaluation {
@@ -61,10 +89,149 @@ model Evaluation {
   createdAt      DateTime @default(now())
   completedAt    DateTime?
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  evalRuns  EvalRun[]
+  ablationBaselines AblationRun[] @relation("AblationBaseline")
+  ablationDefended  AblationRun[] @relation("AblationDefended")
 
   @@index([projectId])
   @@index([status])
   @@index([configHash])
 }
 
+model AblationRun {
+  id                     String    @id @default(cuid())
+  projectId              String
+  baselineEvaluationId   String
+  defendedEvaluationId   String
+  status                 String    @default("pending")
+  defenses               Json
+  diffJson               Json?
+  createdAt              DateTime  @default(now())
+  completedAt            DateTime?
+
+  project              Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  baselineEvaluation   Evaluation @relation("AblationBaseline", fields: [baselineEvaluationId], references: [id], onDelete: Cascade)
+  defendedEvaluation   Evaluation @relation("AblationDefended", fields: [defendedEvaluationId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model EvalRun {
+  id               String    @id @default(cuid())
+  evaluationId     String
+  specVersion      String    @default("1.0")
+  traceId          String    @unique
+  provider         String
+  model            String?
+  scenarioIds      Json
+  status           String    @default("started")
+  startedAt        DateTime  @default(now())
+  completedAt      DateTime?
+  totalScenarios   Int       @default(0)
+  passedCount      Int       @default(0)
+  failedMinor      Int       @default(0)
+  failedCritical   Int       @default(0)
+  safetyScore      Float?
+  metadata         Json?
+
+  evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  spans      EvalSpan[]
+
+  @@index([evaluationId])
+  @@index([traceId])
+}
+
+model EvalSpan {
+  id             String    @id @default(cuid())
+  evalRunId      String?
+  spanId         String    @unique
+  parentSpanId   String?
+  traceId        String
+  eventType      String
+  scenarioId     String?
+  attempt        Int       @default(1)
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  durationMs     Int?
+  status         String?
+  score          Float?
+  reasoning      String?   @db.Text
+  rawPrompt      String?   @db.Text
+  rawResponse    String?   @db.Text
+  tags           Json?
+  failReasons    Json?
+  graderResults  Json?
+  attributes     Json?
+  /// native = produced during execution; synthetic = reconstructed post-hoc; sdk / otel / langsmith = ingest
+  traceOrigin    String   @default("synthetic")
+
+  evalRun EvalRun? @relation(fields: [evalRunId], references: [id], onDelete: Cascade)
+
+  @@index([evalRunId])
+  @@index([traceId])
+  @@index([scenarioId])
+  @@index([eventType])
+  @@index([status])
+  @@index([traceOrigin])
+}
+
+model AuditEvent {
+  id                 String   @id @default(cuid())
+  eventId            String   @unique
+  eventType          String
+  severity           String
+  title              String
+  lines              Json
+  metadata           Json?
+  actorUserId        String?
+  organizationId     String?
+  evaluationId       String?
+  payloadSha256      String
+  signatureAlgorithm String?
+  signatureKeyId     String?
+  signatureValue     String?
+  deliveryStatus     Json?
+  createdAt          DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([eventType])
+  @@index([severity])
+  @@index([organizationId])
+}
+
+model ApiKey {
+  id             String    @id @default(cuid())
+  organizationId String
+  name           String
+  prefix         String    @unique
+  keyHash        String    @unique
+  role           String    @default("evaluator")
+  scopes         Json?
+  createdBy      String?
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, revokedAt])
+  @@index([createdAt])
+}
+
+model DailyUsage {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  usageDate           DateTime
+  evaluationsRequested Int      @default(0)
+  evaluationsCompleted Int      @default(0)
+  scenariosRequested  Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, usageDate])
+  @@index([organizationId, usageDate])
+}
